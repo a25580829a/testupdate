@@ -1,9 +1,12 @@
-﻿using System;
+﻿using Microsoft.Win32;
+using System;
+using System.IO;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 
 namespace WpfApp1
@@ -14,6 +17,7 @@ namespace WpfApp1
     public partial class MainWindow : Window
     {
         string shapeType = "Line";
+        string actionType = "Draw";
         Point start, dest;
         Color StrokeColor = Colors.Red, StrokeFillColor = Colors.Orange;
         Brush CurrentStrokeBrush, CurrentStrokeBrushFill;
@@ -32,23 +36,48 @@ namespace WpfApp1
             myCanvas.Cursor = Cursors.Cross;
             start = e.GetPosition(myCanvas);
 
-            DisplayStatus();
+            if (actionType == "Draw")
+            {
+                myCanvas.Cursor = Cursors.Cross;
+                switch (shapeType)
+                {
+                    case "Line":
+                        DrawLine(Brushes.Gray, 1);
+                        break;
+                    case "Rectangle":
+                        DrawRectangle(Brushes.Gray, Brushes.LightGray, 1);
+                        break;
+                    case "Ellipse":
+                        DrawEllipse(Brushes.Gray, Brushes.LightGray, 1);
+                        break;
+                    case "Polyline":
+                        DrawPolyline(Brushes.Gray, Brushes.LightGray, 1);
+                        break;
+                }
+
+
+            }
 
             positionLabel.Content = $"座標點({start.X}),({start.Y}) - ({dest.X}),({dest.Y})";
-            
-            switch (shapeType)
+
+ 
+
+            DisplayStatus();
+        }
+
+        private void DrawPolyline(Brush stroke, Brush fill, int thickness)
+        {
+            PointCollection pointcollection = new PointCollection();
+            pointcollection.Add(start);
+            Polyline polyline = new Polyline()
             {
-                case "Line":
-                    DrawLine(Brushes.Gray, 1);
-                    break;
-                case "Rectangle":
-                    DrawRectangle(Brushes.Gray,Brushes.LightGray, 1);
-                    break;
-                case "Ellipse":
-                    DrawEllipse(Brushes.Gray,Brushes.LightGray, 1);
-                    break;
-            }
-           
+                Stroke = stroke,
+                StrokeThickness = thickness,
+                Fill = fill,
+                Points = pointcollection
+            };
+            myCanvas.Children.Add(polyline);
+
         }
 
         private void DisplayStatus()
@@ -66,9 +95,20 @@ namespace WpfApp1
         private void Canvas_MouseMove(object sender, MouseEventArgs e)
         {
             dest = e.GetPosition(myCanvas);
-            DisplayStatus();
+           
+            if (actionType == "Erase")
+            {
+                var eraseShape = e.OriginalSource as Shape;
+                myCanvas.Children.Remove(eraseShape);
 
-            if (e.LeftButton == MouseButtonState.Pressed)
+                if (myCanvas.Children.Count == 0)
+                {
+                    myCanvas.Cursor = Cursors.Arrow;
+                    actionType = "Draw";
+                }
+            }
+
+            else if (e.LeftButton == MouseButtonState.Pressed)
             {
                 switch (shapeType)
                 {
@@ -85,32 +125,45 @@ namespace WpfApp1
                         var ellipse = myCanvas.Children.OfType<Ellipse>().LastOrDefault();
                         UpdateShape(ellipse);
                         break;
+                    case "Polyline":
+                        var polyline = myCanvas.Children.OfType<Polyline>().LastOrDefault();
+                        var pointCollection = polyline.Points;
+                        pointCollection.Add(dest);
+                        break;
                 }
             }
+            DisplayStatus();
         }
 
         private void Canvas_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
         {
-            switch (shapeType)
+            if (actionType == "Draw")
             {
-                case "Line":
-                    var line = myCanvas.Children.OfType<Line>().LastOrDefault();
-                    UpdateShape(line, CurrentStrokeBrush, strokeThickness);
-                    //line.X2 = dest.X;
-                    //line.Y2 = dest.Y;
-                    break;
-                case "Rectangle":
-                    var rect = myCanvas.Children.OfType<Rectangle>().LastOrDefault();
-                    UpdateShape(rect, CurrentStrokeBrush,CurrentStrokeBrushFill, strokeThickness);
-                    break;
-                case "Ellipse":
-                    var ellipse = myCanvas.Children.OfType<Ellipse>().LastOrDefault();
-                    UpdateShape(ellipse, CurrentStrokeBrush,CurrentStrokeBrushFill, strokeThickness);
-                    break;
-                case "Polyline":
-                    break;
+                switch (shapeType)
+                {
+                    case "Line":
+                        var line = myCanvas.Children.OfType<Line>().LastOrDefault();
+                        UpdateShape(line, CurrentStrokeBrush, strokeThickness);
+                        //line.X2 = dest.X;
+                        //line.Y2 = dest.Y;
+                        break;
+                    case "Rectangle":
+                        var rect = myCanvas.Children.OfType<Rectangle>().LastOrDefault();
+                        UpdateShape(rect, CurrentStrokeBrush, CurrentStrokeBrushFill, strokeThickness);
+                        break;
+                    case "Ellipse":
+                        var ellipse = myCanvas.Children.OfType<Ellipse>().LastOrDefault();
+                        UpdateShape(ellipse, CurrentStrokeBrush, CurrentStrokeBrushFill, strokeThickness);
+                        break;
+                    case "Polyline":
+                        var polyline = myCanvas.Children.OfType<Polyline>().LastOrDefault();
+                        UpdateShape(polyline, CurrentStrokeBrush, CurrentStrokeBrushFill, strokeThickness);
+                        break;
+                }
+                myCanvas.Cursor = Cursors.Arrow;
             }
-            myCanvas.Cursor = Cursors.Arrow;
+            DisplayStatus();
+
         }
 
         private void DrawLine(Brush stroke, int thickness)
@@ -127,7 +180,7 @@ namespace WpfApp1
             myCanvas.Children.Add(Line);
         }
 
-        private void DrawEllipse(SolidColorBrush stroke,Brush fill, int thickness)
+        private void DrawEllipse(SolidColorBrush stroke, Brush fill, int thickness)
         {
             Ellipse ellipse = new Ellipse()
             {
@@ -140,7 +193,7 @@ namespace WpfApp1
             myCanvas.Children.Add(ellipse);
         }
 
-        private void DrawRectangle(SolidColorBrush stroke,Brush fill, int thickness)
+        private void DrawRectangle(SolidColorBrush stroke, Brush fill, int thickness)
         {
             Rectangle rect = new Rectangle()
             {
@@ -156,7 +209,7 @@ namespace WpfApp1
         private void RadioButtonClick(object sender, RoutedEventArgs e)
         {
             RadioButton rb1 = sender as RadioButton;
-            shapeType = rb1.Content.ToString();
+            shapeType = rb1.Tag.ToString();
         }
 
         private void ThicknessSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
@@ -176,7 +229,63 @@ namespace WpfApp1
             CurrentStrokeBrushFill = new SolidColorBrush(StrokeFillColor);
         }
 
-        private void UpdateShape(Shape shape, Brush stroke,Brush fill, int thickness)
+        private void EraserButton_Click(object sender, RoutedEventArgs e)
+        {
+            actionType = "Erase";
+            myCanvas.Cursor = Cursors.Hand;
+        }
+
+        private void DeleteButton_Click(object sender, RoutedEventArgs e)
+        {
+            myCanvas.Children.Clear();
+            actionType = "Draw";
+        }
+
+        private void ShapeMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            var menuItem = sender as MenuItem;
+            shapeType = menuItem.Header.ToString();
+        }
+
+        private void SaveItem_Click(object sender, RoutedEventArgs e)
+        {
+            int w = Convert.ToInt32(myCanvas.RenderSize.Width);
+            int h = Convert.ToInt32(myCanvas.RenderSize.Height);
+
+            RenderTargetBitmap rtb = new RenderTargetBitmap(w, h, 64d, 64d, PixelFormats.Default);
+            rtb.Render(myCanvas);
+
+            PngBitmapEncoder png = new PngBitmapEncoder();
+            png.Frames.Add(BitmapFrame.Create(rtb));
+            JpegBitmapEncoder jpeg = new JpegBitmapEncoder();
+            jpeg.Frames.Add(BitmapFrame.Create(rtb));
+
+            SaveFileDialog saveFileDialog = new SaveFileDialog();
+            saveFileDialog.Title = "儲存畫布";
+            saveFileDialog.DefaultExt = ".png";
+            saveFileDialog.Filter = "png檔案|*.png|所有檔案|*,*|.JPG|*.jpg";
+
+            if (saveFileDialog.ShowDialog() == true)
+            {
+                string path = saveFileDialog.FileName;
+                using (var fs = File.Create(path))
+                {
+                    if (saveFileDialog.FilterIndex == 1) png.Save(fs);
+                    else if (saveFileDialog.FilterIndex == 3) jpeg.Save(fs);
+                }
+            }
+        }
+
+        private void displaytoolbar_Click(object sender, RoutedEventArgs e)
+        {
+            if (displaytoolbar.IsChecked == true)
+            {
+                MaintoolBarTray.Visibility = Visibility.Collapsed;
+            }
+            else MaintoolBarTray.Visibility = Visibility.Visible;
+        }
+
+        private void UpdateShape(Shape shape, Brush stroke, Brush fill, int thickness)
         {
             shape.Stroke = stroke;
             shape.Fill = fill;
